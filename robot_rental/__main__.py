@@ -23,13 +23,25 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.cmd == "fleet":
         for r in FLEET:
-            print(f"{r.robot_id:<5} {r.model:<15} {r.kind:<9} ${r.daily:>4.0f}/day deposit ${r.deposit:,.0f}"
-                  + ("  (operator)" if r.needs_operator else ""))
+            print(
+                f"{r.robot_id:<5} {r.model:<15} {r.kind:<9} ${r.daily:>4.0f}/day deposit ${r.deposit:,.0f}"
+                + ("  (operator)" if r.needs_operator else "")
+            )
         return 0
     c = Counter()
     try:
-        res = c.quote(a.job, date.fromisoformat(a.date), a.km, rooms=a.rooms, heaviest=a.heaviest, stairs=a.stairs,
-                      sqft=a.sqft, detail=a.detail, guests=a.guests, hours=a.hours)
+        res = c.quote(
+            a.job,
+            date.fromisoformat(a.date),
+            a.km,
+            rooms=a.rooms,
+            heaviest=a.heaviest,
+            stairs=a.stairs,
+            sqft=a.sqft,
+            detail=a.detail,
+            guests=a.guests,
+            hours=a.hours,
+        )
     except RentalError as e:
         print(f"Can't quote: {e}", file=sys.stderr)
         return 1

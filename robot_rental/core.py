@@ -1,4 +1,5 @@
 """Fleet, job-based quoting, bookings and returns for robot rentals."""
+
 from __future__ import annotations
 
 import itertools
@@ -32,8 +33,12 @@ class Robot:
 
 
 FLEET = [
-    Robot("H-01", "Humanoid H2", "humanoid", 650, 2000, lift_kg=25, stairs=True, sqft_per_hour=300, needs_operator=True),
-    Robot("H-02", "Humanoid H2", "humanoid", 650, 2000, lift_kg=25, stairs=True, sqft_per_hour=300, needs_operator=True),
+    Robot(
+        "H-01", "Humanoid H2", "humanoid", 650, 2000, lift_kg=25, stairs=True, sqft_per_hour=300, needs_operator=True
+    ),
+    Robot(
+        "H-02", "Humanoid H2", "humanoid", 650, 2000, lift_kg=25, stairs=True, sqft_per_hour=300, needs_operator=True
+    ),
     Robot("C-01", "CargoMate 200", "cargo", 220, 800, lift_kg=200, stairs=True),
     Robot("C-02", "CargoMate 120", "cargo", 160, 600, lift_kg=120, stairs=False),
     Robot("K-01", "ScrubPro X", "cleaner", 140, 400, sqft_per_hour=1500),
@@ -46,13 +51,19 @@ FLEET = [
 
 def job_requirements(job: str, **p) -> dict:
     if job == "move":
-        return {"needs": [{"kind": "cargo", "lift_kg": p.get("heaviest", 50), "stairs": p.get("stairs", False)},
-                          {"kind": "humanoid"} if p.get("rooms", 1) >= 3 else None],
-                "hours": 1.5 * p.get("rooms", 1) + (1 if p.get("stairs") else 0)}
+        return {
+            "needs": [
+                {"kind": "cargo", "lift_kg": p.get("heaviest", 50), "stairs": p.get("stairs", False)},
+                {"kind": "humanoid"} if p.get("rooms", 1) >= 3 else None,
+            ],
+            "hours": 1.5 * p.get("rooms", 1) + (1 if p.get("stairs") else 0),
+        }
     if job == "deep_clean":
         sqft = p.get("sqft", 1000)
-        return {"needs": [{"kind": "cleaner", "sqft": sqft}, {"kind": "humanoid"} if p.get("detail") else None],
-                "hours": sqft / 1500}
+        return {
+            "needs": [{"kind": "cleaner", "sqft": sqft}, {"kind": "humanoid"} if p.get("detail") else None],
+            "hours": sqft / 1500,
+        }
     if job == "event":
         guests, hours = p.get("guests", 50), p.get("hours", 4)
         servers = max(1, math.ceil(guests / 60 / max(hours, 1) * 2))  # ~2 serves per guest across the event
@@ -65,14 +76,15 @@ def _fits(r: Robot, need: dict) -> bool:
         return False
     if r.lift_kg < need.get("lift_kg", 0):
         return False
-    if need.get("stairs") and not r.stairs:
-        return False
-    return True
+    return not (need.get("stairs") and not r.stairs)
 
 
 class Counter:
     def __init__(self, fleet: list[Robot] | None = None):
-        self.fleet = {r.robot_id: r for r in (fleet or [Robot(**{k: v for k, v in r.__dict__.items() if k != "booked"}) for r in FLEET])}
+        self.fleet = {
+            r.robot_id: r
+            for r in (fleet or [Robot(**{k: v for k, v in r.__dict__.items() if k != "booked"}) for r in FLEET])
+        }
         self.bookings: dict[str, dict] = {}
         self._ids = itertools.count(1)
 
@@ -93,9 +105,17 @@ class Counter:
         delivery = round(km * KM_RATE * 2, 2)
         operator = round(OPERATOR_HOURLY * hours, 2) if any(r.needs_operator for r in chosen) else 0.0
         deposit = sum(r.deposit for r in chosen)
-        return {"job": job, "date": day.isoformat(), "robots": [r.robot_id for r in chosen], "est_hours": hours,
-                "rental": rental, "delivery": delivery, "operator": operator,
-                "total": round(rental + delivery + operator, 2), "deposit": deposit}
+        return {
+            "job": job,
+            "date": day.isoformat(),
+            "robots": [r.robot_id for r in chosen],
+            "est_hours": hours,
+            "rental": rental,
+            "delivery": delivery,
+            "operator": operator,
+            "total": round(rental + delivery + operator, 2),
+            "deposit": deposit,
+        }
 
     def book(self, q: dict, customer: str) -> str:
         day = date.fromisoformat(q["date"])
@@ -115,8 +135,13 @@ class Counter:
         damage = sum((damages or {}).values())
         late = late_days * b["rental"]
         charged = min(b["deposit"], damage + late)
-        b.update(status="returned", damage=damage, late_fee=late, deposit_refund=b["deposit"] - charged,
-                 extra_due=max(0, damage + late - b["deposit"]))
+        b.update(
+            status="returned",
+            damage=damage,
+            late_fee=late,
+            deposit_refund=b["deposit"] - charged,
+            extra_due=max(0, damage + late - b["deposit"]),
+        )
         for rid in b["robots"]:
             self.fleet[rid].booked.discard(date.fromisoformat(b["date"]))
         return b

@@ -1,5 +1,7 @@
 # robot-rental
 
+[![CI](https://github.com/eliem08/robot-rental/actions/workflows/ci.yml/badge.svg)](https://github.com/eliem08/robot-rental/actions/workflows/ci.yml)
+
 > **Hertz for robots** — rent one for a move, a deep clean or an event.
 
 Nobody needs to own a $40k humanoid to move apartments once. But renting one
@@ -36,3 +38,25 @@ robot-rental quote event --guests 120 --hours 5 --date 2026-11-07
 - Teleoperation fallback marketplace (remote operators take over hard steps)
 - Insurance at checkout (pairs with agent-insure)
 - Franchise depots + fleet utilisation dashboards
+
+## Development
+
+Zero runtime dependencies; Python 3.10+.
+
+```bash
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+python -m unittest discover -s tests -t .           # unit + CLI smoke tests
+ruff check . && ruff format --check .               # lint + format
+```
+
+```
+robot_rental/core.py       domain logic (pure, importable, fully tested)
+robot_rental/__main__.py   CLI (`robot-rental ...` / `python -m robot_rental ...`)
+tests/                unit tests + generated CLI smoke tests
+```
+
+CI runs lint and tests on Ubuntu and Windows across Python 3.10, 3.12 and 3.13.
+Design, data model, trade-offs and production path: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
+Part of the [agent-economy](https://github.com/eliem08/agent-economy) portfolio (idea #25).
