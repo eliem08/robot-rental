@@ -28,8 +28,11 @@ Every command is also a JSON API endpoint and a browser form, served by the buil
 
 ```bash
 robot-rental-web --port 8000          # then open http://127.0.0.1:8000
-docker build -t robot-rental . && docker run -p 8000:8000 -v robot-rental-data:/data robot-rental
+robot-rental-web keys create --label "first customer"   # prints an API key (stored hashed)
+docker build -t robot-rental . && docker run -p 8000:8000 -e API_KEYS=sk_... -v robot-rental-data:/data robot-rental
 ```
+
+Every API call needs `Authorization: Bearer <key>` once any key exists; a server on a public address refuses to start without one. Calls are rate-limited per key (60/min, `--rate`) and metered: `robot-rental-web usage` prints calls per key for billing.
 
 Endpoints: `POST /api/fleet`, `POST /api/quote`, plus `GET /healthz` and `GET /api/spec` (machine-readable field list).
 Files are sent as `{"name": ..., "content": ...}`, folders as `{"files": [...]}` or a base64 zip.
