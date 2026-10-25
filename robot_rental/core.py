@@ -11,6 +11,7 @@ __all__ = ["Robot", "FLEET", "Counter", "RentalError", "job_requirements"]
 
 KM_RATE = 2.5
 OPERATOR_HOURLY = 45.0
+MAX_JOB_HOURS = 24  # a booking reserves robots for one calendar day
 
 
 class RentalError(Exception):
@@ -49,7 +50,18 @@ FLEET = [
 ]
 
 
+def _positive(name: str, value, allow_zero: bool = False) -> None:
+    ok = math.isfinite(value) and (value >= 0 if allow_zero else value > 0)
+    if not ok:
+        raise RentalError(f"{name} must be a finite number {'>= 0' if allow_zero else '> 0'}, got {value!r}")
+
+
 def job_requirements(job: str, **p) -> dict:
+    for name in ("rooms", "sqft", "guests", "hours"):
+        if name in p:
+            _positive(name, p[name])
+    if "heaviest" in p:
+        _positive("heaviest", p["heaviest"], allow_zero=True)
     if job == "move":
         return {
             "needs": [
@@ -67,6 +79,9 @@ def job_requirements(job: str, **p) -> dict:
     if job == "event":
         guests, hours = p.get("guests", 50), p.get("hours", 4)
         servers = max(1, math.ceil(guests / 60 / max(hours, 1) * 2))  # ~2 serves per guest across the event
+        fleet_servers = sum(r.kind == "server" for r in FLEET)
+        if servers > fleet_servers:
+            raise RentalError(f"{guests} guests needs {servers} servers; the fleet has {fleet_servers}")
         return {"needs": [{"kind": "server"} for _ in range(servers)], "hours": hours}
     raise RentalError(f"unknown job {job!r}")
 
@@ -92,7 +107,12 @@ class Counter:
         return [r for r in self.fleet.values() if day not in r.booked]
 
     def quote(self, job: str, day: date, km: float = 10, **params) -> dict:
+        _positive("km", km, allow_zero=True)
         req = job_requirements(job, **params)
+        if req["hours"] > MAX_JOB_HOURS:
+            raise RentalError(
+                f"job needs ~{req['hours']:.1f} h but a booking covers one {MAX_JOB_HOURS} h day; split it into days"
+            )
         free = sorted(self.available(day), key=lambda r: r.daily)
         chosen = []
         for need in [n for n in req["needs"] if n]:
@@ -132,6 +152,8 @@ class Counter:
         b = self.bookings[booking_id]
         if b["status"] != "booked":
             raise RentalError("booking not active")
+        if late_days < 0 or any(not math.isfinite(v) or v < 0 for v in (damages or {}).values()):
+            raise RentalError("damages and late_days cannot be negative")
         damage = sum((damages or {}).values())
         late = late_days * b["rental"]
         charged = min(b["deposit"], damage + late)
