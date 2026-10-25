@@ -1,4 +1,4 @@
-"""Hertz for robots: rent one for a move, a deep clean or an event."""
+"""Robot Rental: Rent a robot for a move, a deep clean or an event."""
 
 from .core import *
 

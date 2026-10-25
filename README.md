@@ -1,15 +1,45 @@
-# robot-rental
+<!-- sell-kit:start -->
+# Robot Rental
 
 [![CI](https://github.com/eliem08/robot-rental/actions/workflows/ci.yml/badge.svg)](https://github.com/eliem08/robot-rental/actions/workflows/ci.yml)
 
-> **Hertz for robots** — rent one for a move, a deep clean or an event.
+> **Rent a robot for a move, a deep clean or an event.**
 
-Nobody needs to own a $40k humanoid to move apartments once. But renting one
-for a Saturday? Yes. `robot-rental` is the booking engine for a robot rental
-counter: fleet, job-based quoting, availability, delivery, operators,
-deposits and return inspections.
+**Who it's for:** Robot fleet operators, and the people booking them for one-off jobs.
 
-## What the MVP does
+**The problem:** Robots are expensive to own and hard to book, and quoting a job by hand is slow and error-prone.
+
+**What you get:** Job-based quotes that pick the right robots, availability-safe booking, deposits, damage and late-fee returns.
+
+## Quickstart
+
+Customers receive a release archive with the wheel and the examples. Python 3.10+ and no other dependencies.
+
+```bash
+pip install robot_rental-0.1.0-py3-none-any.whl
+robot-rental fleet
+robot-rental quote move --rooms 3 --heaviest 80 --stairs --date 2026-11-07 --km 12
+robot-rental quote event --guests 120 --hours 5 --date 2026-11-07
+```
+
+## Pricing
+
+Every plan starts with a 14-day free trial. Prices in USD, billed monthly unless noted.
+
+| Plan | Price | Includes |
+|---|---|---|
+| **Operator** | $149 per month | Up to 20 robots; Quotes and bookings; Deposits and returns |
+| **Fleet** | $599 per month | Unlimited robots; Custom job types; Reporting |
+| **Marketplace** | Custom (revenue share, contact sales) | Multi-operator marketplace; Payments; Support |
+
+To start a trial or buy a plan, email **sales@YOUR-DOMAIN.com**.
+
+## Licence
+
+Proprietary. Copyright (c) 2026 eliem08. All rights reserved. Use requires a paid plan or an active trial; see [LICENSE](LICENSE).
+<!-- sell-kit:end -->
+
+## What it does
 
 - **Fleet**: robots with type (`humanoid`, `cargo`, `cleaner`, `server`),
   capabilities (`lift_kg`, `stairs`, `sqft_per_hour`, `serves_per_hour`), daily

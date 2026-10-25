@@ -5,16 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "robot-rental"
 version = "0.1.0"
-description = "Hertz for robots: rent one for a move, a deep clean or an event"
+description = "Rent a robot for a move, a deep clean or an event."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "Proprietary" }
 authors = [{ name = "eliem08" }]
 dependencies = []
 classifiers = [
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
+  "License :: Other/Proprietary License",
   "Operating System :: OS Independent",
+  "Private :: Do Not Upload",
 ]
 
 [project.optional-dependencies]
