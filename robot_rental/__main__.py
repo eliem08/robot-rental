@@ -16,7 +16,7 @@ def _finite_float(s: str) -> float:
     return v
 
 
-def _run(argv=None):
+def build_parser():
     ap = argparse.ArgumentParser(prog="robot-rental")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("fleet")
@@ -31,6 +31,11 @@ def _run(argv=None):
     q.add_argument("--detail", action="store_true")
     q.add_argument("--guests", type=int, default=60)
     q.add_argument("--hours", type=_finite_float, default=4)
+    return ap
+
+
+def _run(argv=None):
+    ap = build_parser()
     a = ap.parse_args(argv)
     if a.cmd == "fleet":
         for r in FLEET:
