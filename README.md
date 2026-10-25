@@ -47,7 +47,7 @@ Every plan starts with a 14-day free trial. Prices in USD, billed monthly unless
 | **Fleet** | $599 per month | Unlimited robots; Custom job types; Reporting |
 | **Marketplace** | Custom (revenue share, contact sales) | Multi-operator marketplace; Payments; Support |
 
-To start a trial or buy a plan, email **sales@YOUR-DOMAIN.com**.
+To start a trial or buy a plan, [request access](https://github.com/eliem08/robot-rental/issues/new?title=Robot%20Rental%20trial&labels=sales).
 
 ## Licence
 
