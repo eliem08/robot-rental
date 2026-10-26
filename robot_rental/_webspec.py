@@ -28,7 +28,7 @@ SPEC = {
                     "kind": "text",
                     "required": False,
                     "choices": None,
-                    "default": "2026-10-25",
+                    "default": "2026-10-26",
                     "help": None,
                     "scope": "op",
                     "append": False,
