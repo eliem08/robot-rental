@@ -20,6 +20,8 @@ pip install robot_rental-0.1.0-py3-none-any.whl
 robot-rental fleet
 robot-rental quote move --rooms 3 --heaviest 80 --stairs --date 2026-11-07 --km 12
 robot-rental quote event --guests 120 --hours 5 --date 2026-11-07
+robot-rental book move --rooms 3 --heaviest 80 --stairs --date 2026-11-07 --km 12 --customer acme
+robot-rental return R0001 --damages "scratched brush=150" --late-days 1
 ```
 
 ## Web app and API
@@ -48,7 +50,7 @@ To sell self-serve, set four variables and point a Stripe webhook at `https://<y
 |---|---|
 | `STRIPE_SECRET_KEY` | `sk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` |
-| `STRIPE_PRICES` | `team=price_123,business=price_456` |
+| `STRIPE_PRICES` | `operator=price_123,fleet=price_456` |
 | `PUBLIC_URL` | `https://robot-rental.example.com` |
 
 Buyers pick a plan on `/pricing`, pay on Stripe Checkout and see their API key once on the success page. Cancelling the subscription revokes the key. A selling server always requires a key.
@@ -59,11 +61,13 @@ Every plan starts with a 14-day free trial. Prices in USD, billed monthly unless
 
 | Plan | Price | Includes |
 |---|---|---|
-| **Operator** | $149 per month | Up to 20 robots; Quotes and bookings; Deposits and returns |
-| **Fleet** | $599 per month | Unlimited robots; Custom job types; Reporting |
-| **Marketplace** | Custom (revenue share, contact sales) | Multi-operator marketplace; Payments; Support |
+| **Operator** | $149 per month | Quotes and bookings; Deposits and returns |
+| **Fleet** | $599 per month | Everything in Operator; Fleet onboarding support |
+| **Marketplace** | Custom (revenue share, contact sales) | Everything in Fleet; Multi-operator support |
 
 To start a trial or buy a plan, [request access](https://github.com/eliem08/robot-rental/issues/new?title=Robot%20Rental%20trial&labels=sales).
+
+Plan note, owner decision on merge: there is no feature gating by plan in the code — every API key unlocks the same software (fleet, quote, book, return). The fleet is a fixed 9-robot list in code, so Operator's "up to 20 robots" and Fleet's "unlimited robots" are not enforced or configurable; Fleet's custom job types and reporting, and Marketplace's multi-operator marketplace and payments, are not built and have been removed from the sales copy. Higher tiers differ by human onboarding/support, not by gated features. Marketplace is contact-sales, not a Stripe plan, so the STRIPE_PRICES example only lists operator/fleet.
 
 ## Licence
 
@@ -92,7 +96,11 @@ pip install -e .
 robot-rental fleet
 robot-rental quote move --rooms 3 --heaviest 80 --stairs --date 2026-11-07 --km 12
 robot-rental quote event --guests 120 --hours 5 --date 2026-11-07
+robot-rental book move --rooms 3 --heaviest 80 --stairs --date 2026-11-07 --km 12 --customer acme
+robot-rental return R0001 --damages "scratched brush=150" --late-days 1
 ```
+
+Bookings are stored in `~/.robot-rental/bookings.json` (or `$ROBOT_RENTAL_HOME/bookings.json`); a quote reads that file, so a booked robot is not offered again for the same date. The web app runs the CLI with `HOME` set to its data dir, so web bookings persist in the server's data dir.
 
 ## Roadmap
 
@@ -109,6 +117,7 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\act
 pip install -e ".[dev]"
 python -m unittest discover -s tests -t .           # unit + CLI smoke tests
 ruff check . && ruff format --check .               # lint + format
+python -m pip wheel . --no-deps -w dist            # customer wheel, as in Quickstart
 ```
 
 ```
