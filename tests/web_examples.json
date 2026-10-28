@@ -29,5 +29,27 @@
    "guests": 120,
    "hours": 5.0
   }
+ },
+ {
+  "op": "book",
+  "payload": {
+   "job": "deep_clean",
+   "date": "2026-11-07",
+   "km": 10,
+   "rooms": 2,
+   "heaviest": 50,
+   "sqft": 3000,
+   "guests": 60,
+   "hours": 4,
+   "customer": "acme"
+  }
+ },
+ {
+  "op": "return",
+  "payload": {
+   "booking_id": "R0001",
+   "late_days": 0,
+   "damages": ""
+  }
  }
 ]
