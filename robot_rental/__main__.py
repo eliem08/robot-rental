@@ -6,6 +6,7 @@ import sys
 from datetime import date
 
 from .core import FLEET, Counter, RentalError
+from .ops import OPS, add_ops, run_ops
 
 
 def _finite_float(s: str) -> float:
@@ -31,12 +32,15 @@ def build_parser():
     q.add_argument("--detail", action="store_true")
     q.add_argument("--guests", type=int, default=60)
     q.add_argument("--hours", type=_finite_float, default=4)
+    add_ops(sub)
     return ap
 
 
 def _run(argv=None):
     ap = build_parser()
     a = ap.parse_args(argv)
+    if a.cmd in OPS:
+        return run_ops(a)
     if a.cmd == "fleet":
         for r in FLEET:
             print(
