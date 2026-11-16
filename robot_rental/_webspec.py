@@ -28,7 +28,7 @@ SPEC = {
                     "kind": "text",
                     "required": False,
                     "choices": None,
-                    "default": "2026-11-15",
+                    "default": "2026-11-16",
                     "help": None,
                     "scope": "op",
                     "append": False,
@@ -364,6 +364,26 @@ SPEC = {
                 },
             ],
             "id": "availability",
+        },
+    ],
+    "plans": [
+        {
+            "key": "operator",
+            "name": "Operator",
+            "price": "$149 per month",
+            "features": ["Built-in fleet catalogue", "Quotes and bookings", "Deposits and returns"],
+        },
+        {
+            "key": "fleet",
+            "name": "Fleet",
+            "price": "$599 per month",
+            "features": ["Rental and deposit ledger", "Availability by day", "Priority support"],
+        },
+        {
+            "key": "marketplace",
+            "name": "Marketplace",
+            "price": "Revenue share, contact sales",
+            "features": ["Self-hosted deployment", "Dedicated support"],
         },
     ],
 }
