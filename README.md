@@ -55,15 +55,18 @@ Buyers pick a plan on `/pricing`, pay on Stripe Checkout and see their API key o
 
 ## Pricing
 
-Every plan starts with a 14-day free trial. Prices in USD, billed monthly unless noted.
+Monthly plans start with a 14-day free trial. Prices in USD, billed monthly unless noted.
 
 | Plan | Price | Includes |
 |---|---|---|
-| **Operator** | $149 per month | Up to 20 robots; Quotes and bookings; Deposits and returns |
-| **Fleet** | $599 per month | Unlimited robots; Custom job types; Reporting |
-| **Marketplace** | Custom (revenue share, contact sales) | Multi-operator marketplace; Payments; Support |
+| **Operator** | $149 per month | Built-in fleet catalogue; Quotes and bookings; Deposits and returns |
+| **Fleet** | $599 per month | Rental and deposit ledger; Availability by day; Priority support |
+| **Marketplace** | Custom (revenue share, contact sales) | Self-hosted deployment; Dedicated support |
 
 To start a trial or buy a plan, [request access](https://github.com/eliem08/robot-rental/issues/new?title=Robot%20Rental%20trial&labels=sales).
+
+Plan note: every plan runs the same software, and every API key unlocks all of it. Seat, agent and volume
+limits are licence terms; the code does not enforce them. Support, SLA and done-for-you items are services.
 
 ## Licence
 
