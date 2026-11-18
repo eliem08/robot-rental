@@ -20,7 +20,7 @@ def _finite_float(s: str) -> float:
 def build_parser():
     ap = argparse.ArgumentParser(prog="robot-rental")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("fleet")
+    sub.add_parser("fleet", help="the built-in demo fleet (see robots for the fleet in your store)")
     q = sub.add_parser("quote")
     q.add_argument("job", choices=["move", "deep_clean", "event"])
     q.add_argument("--date", default=date.today().isoformat())

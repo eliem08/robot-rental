@@ -17,9 +17,9 @@ Customers receive a release archive with the wheel and the examples. Python 3.10
 
 ```bash
 pip install robot_rental-0.1.0-py3-none-any.whl
+robot-rental robots --store rentals.json
 robot-rental reserve "Ana Diaz" move --date 2099-01-10 --rooms 3 --stairs --store rentals.json
 robot-rental availability --date 2099-01-10 --store rentals.json
-robot-rental rentals --store rentals.json
 ```
 
 ## Web app and API
@@ -34,7 +34,7 @@ docker build -t robot-rental . && docker run -p 8000:8000 -e API_KEYS=sk_... -v 
 
 Every API call needs `Authorization: Bearer <key>` once any key exists; a server on a public address refuses to start without one. Calls are rate-limited per key (60/min, `--rate`) and metered: `robot-rental-web usage` prints calls per key for billing.
 
-Endpoints: `POST /api/fleet`, `POST /api/quote`, `POST /api/reserve`, `POST /api/return`, `POST /api/rentals`, `POST /api/availability`, plus `GET /healthz` and `GET /api/spec` (machine-readable field list).
+Endpoints: `POST /api/fleet`, `POST /api/quote`, `POST /api/robot-add`, `POST /api/robot-remove`, `POST /api/robots`, `POST /api/reserve`, `POST /api/return`, `POST /api/rentals`, `POST /api/availability`, plus `GET /healthz` and `GET /api/spec` (machine-readable field list).
 Files are sent as `{"name": ..., "content": ...}`, folders as `{"files": [...]}` or a base64 zip.
 
 ## Deploy and sell
@@ -98,6 +98,19 @@ robot-rental fleet
 robot-rental quote move --rooms 3 --heaviest 80 --stairs --date 2026-11-07 --km 12
 robot-rental quote event --guests 120 --hours 5 --date 2026-11-07
 ```
+
+## Your own fleet
+
+The store starts with a built-in demo fleet. Add your own robots and the demo is replaced by them only:
+
+```bash
+robot-rental robot-add VAN-1 --model "Atlas Mover" --kind cargo --daily 300 --deposit 1000 --lift-kg 250 --stairs
+robot-rental robot-add HB-1 --model "Unitree G1" --kind humanoid --daily 500 --deposit 3000 --needs-operator
+robot-rental robots
+robot-rental robot-remove VAN-1   # refused while the robot is on a booking
+```
+
+Quotes and reservations then use only your robots.
 
 ## Roadmap
 

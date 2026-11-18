@@ -1,5 +1,9 @@
 [
  {
+  "op": "robots",
+  "payload": {}
+ },
+ {
   "op": "reserve",
   "payload": {
    "customer": "Ana Diaz",

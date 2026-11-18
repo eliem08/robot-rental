@@ -56,7 +56,7 @@ def _positive(name: str, value, allow_zero: bool = False) -> None:
         raise RentalError(f"{name} must be a finite number {'>= 0' if allow_zero else '> 0'}, got {value!r}")
 
 
-def job_requirements(job: str, **p) -> dict:
+def job_requirements(job: str, fleet=None, **p) -> dict:
     for name in ("rooms", "sqft", "guests", "hours"):
         if name in p:
             _positive(name, p[name])
@@ -79,9 +79,9 @@ def job_requirements(job: str, **p) -> dict:
     if job == "event":
         guests, hours = p.get("guests", 50), p.get("hours", 4)
         servers = max(1, math.ceil(guests / 60 / max(hours, 1) * 2))  # ~2 serves per guest across the event
-        fleet_servers = sum(r.kind == "server" for r in FLEET)
+        fleet_servers = sum(r.kind == "server" for r in (FLEET if fleet is None else fleet))
         if servers > fleet_servers:
-            raise RentalError(f"{guests} guests needs {servers} servers; the fleet has {fleet_servers}")
+            raise RentalError(f"{guests} guests need {servers} server robot(s); the fleet has {fleet_servers}")
         return {"needs": [{"kind": "server"} for _ in range(servers)], "hours": hours}
     raise RentalError(f"unknown job {job!r}")
 
@@ -98,7 +98,11 @@ class Counter:
     def __init__(self, fleet: list[Robot] | None = None):
         self.fleet = {
             r.robot_id: r
-            for r in (fleet or [Robot(**{k: v for k, v in r.__dict__.items() if k != "booked"}) for r in FLEET])
+            for r in (
+                fleet
+                if fleet is not None  # an operator's own fleet, even an empty one, replaces the demo
+                else [Robot(**{k: v for k, v in r.__dict__.items() if k != "booked"}) for r in FLEET]
+            )
         }
         self.bookings: dict[str, dict] = {}
         self._ids = itertools.count(1)
@@ -108,7 +112,7 @@ class Counter:
 
     def quote(self, job: str, day: date, km: float = 10, **params) -> dict:
         _positive("km", km, allow_zero=True)
-        req = job_requirements(job, **params)
+        req = job_requirements(job, self.fleet.values(), **params)
         if req["hours"] > MAX_JOB_HOURS:
             raise RentalError(
                 f"job needs ~{req['hours']:.1f} h but a booking covers one {MAX_JOB_HOURS} h day; split it into days"
