@@ -9,13 +9,27 @@ payment and holding the deposit is done through your own payment provider.
 import itertools
 import json
 import os
+import re
 from dataclasses import asdict
 from datetime import date
 
-from .core import Counter, RentalError, Robot
+from .core import BUILT_IN_JOBS, KM_RATE, OPERATOR_HOURLY, Counter, RentalError, Robot
 
-OPS = ("robot-add", "robot-remove", "robots", "reserve", "return", "rentals", "availability")
-KINDS = ("humanoid", "cargo", "cleaner", "server")
+OPS = (
+    "robot-add",
+    "robot-remove",
+    "robots",
+    "job-add",
+    "job-remove",
+    "jobs",
+    "rates",
+    "reserve",
+    "return",
+    "rentals",
+    "availability",
+)
+KINDS = ("humanoid", "cargo", "cleaner", "server")  # built-in kinds; your own robots can use any name
+KIND_RE = re.compile(r"^[a-z][a-z0-9_-]{0,30}$")
 
 
 def _day(text) -> date:
@@ -39,6 +53,10 @@ def load(path: str) -> Counter:
     else:
         c = Counter()
     c.bookings = doc["bookings"]
+    c.custom_jobs = dict(doc.get("jobs", {}))
+    rates = doc.get("rates", {})
+    c.km_rate = float(rates.get("km_rate", KM_RATE))
+    c.operator_hourly = float(rates.get("operator_hourly", OPERATOR_HOURLY))
     c._ids = itertools.count(int(doc.get("next_id", 1)))
     for b in c.bookings.values():  # a robot is busy on the day of every booking still out
         if b["status"] == "booked":
@@ -56,6 +74,10 @@ def save(c: Counter, path: str):
         doc = {"bookings": c.bookings, "next_id": next_id}
         if getattr(c, "own_fleet", False):
             doc["robots"] = [{k: v for k, v in asdict(r).items() if k != "booked"} for r in c.fleet.values()]
+        if c.custom_jobs:
+            doc["jobs"] = c.custom_jobs
+        if (c.km_rate, c.operator_hourly) != (KM_RATE, OPERATOR_HOURLY):
+            doc["rates"] = {"km_rate": c.km_rate, "operator_hourly": c.operator_hourly}
         json.dump(doc, fh, indent=2)
     os.replace(tmp, path)
 
@@ -65,7 +87,7 @@ def add_ops(sub):
     p = sub.add_parser("robot-add", help="add one of your robots to the fleet (the first one replaces the demo)")
     p.add_argument("robot_id")
     p.add_argument("--model", required=True)
-    p.add_argument("--kind", choices=KINDS, required=True)
+    p.add_argument("--kind", required=True, help=f"{', '.join(KINDS)} or your own, e.g. security")
     p.add_argument("--daily", type=float, required=True, help="rental price per day")
     p.add_argument("--deposit", type=float, required=True)
     p.add_argument("--lift-kg", type=float, default=0)
@@ -75,9 +97,26 @@ def add_ops(sub):
     p.add_argument("--needs-operator", action="store_true", help="must be supervised by a paid operator")
     sub.add_parser("robot-remove", help="take a robot out of the fleet").add_argument("robot_id")
     sub.add_parser("robots", help="the fleet, and whether it is your own or the demo")
+    p = sub.add_parser("job-add", help="define a job type you rent out: which robots, and how long it takes")
+    p.add_argument("name", help="e.g. warehouse_inventory")
+    p.add_argument(
+        "--robot",
+        action="append",
+        required=True,
+        help="KIND[:COUNT[:MIN_LIFT_KG]], repeatable, e.g. cargo:2:100 or humanoid",
+    )
+    p.add_argument("--hours", type=float, default=0, help="fixed hours per job")
+    p.add_argument("--hours-per-unit", type=float, default=0, help="extra hours per unit (see --unit)")
+    p.add_argument("--unit", default="unit", help="what a unit is, e.g. pallet, room, 1000 sqft")
+    p.add_argument("--description", default="")
+    sub.add_parser("job-remove", help="delete one of your job types").add_argument("name")
+    sub.add_parser("jobs", help="built-in and your own job types")
+    p = sub.add_parser("rates", help="show or set your delivery and operator rates")
+    p.add_argument("--km-rate", type=float, help="delivery price per km, each way")
+    p.add_argument("--operator-hourly", type=float, help="operator price per hour")
     p = sub.add_parser("reserve", help="price a job and reserve the robots for that day")
     p.add_argument("customer")
-    p.add_argument("job", choices=["move", "deep_clean", "event"])
+    p.add_argument("job", help="move, deep_clean, event or one of your own (see jobs)")
     p.add_argument("--date", help="YYYY-MM-DD, default today")
     p.add_argument("--km", type=float, default=10, help="delivery distance one way")
     p.add_argument("--rooms", type=int, default=2)
@@ -87,6 +126,7 @@ def add_ops(sub):
     p.add_argument("--detail", action="store_true", help="detailed clean")
     p.add_argument("--guests", type=int, default=60)
     p.add_argument("--hours", type=float, default=4)
+    p.add_argument("--units", type=float, default=1, help="units of work for your own job types")
     p = sub.add_parser("return", help="check the robots back in and settle the deposit")
     p.add_argument("booking_id")
     p.add_argument("--damage", action="append", default=[], help="robot=repair cost, e.g. M1=250 (repeatable)")
@@ -108,14 +148,86 @@ def run_ops(a) -> int:
         return 1
 
 
+def _job_line(spec: dict) -> str:
+    robots = ", ".join(
+        f"{r['count']}x {r['kind']}" + (f" (lifts {r['lift_kg']:g} kg)" if r.get("lift_kg") else "")
+        for r in spec["robots"]
+    )
+    hours = " + ".join(
+        x
+        for x in (
+            f"{spec['hours']:g} h" if spec.get("hours") else "",
+            f"{spec['hours_per_unit']:g} h per {spec.get('unit', 'unit')}" if spec.get("hours_per_unit") else "",
+        )
+        if x
+    )
+    return f"{robots}; {hours}"
+
+
 def _run(c: Counter, a):
     cmd = a.cmd
-    if cmd == "robot-add":
+    if cmd == "job-add":
+        name = a.name.strip()
+        if not KIND_RE.match(name) or name in BUILT_IN_JOBS:
+            raise RentalError(f"job name {name!r} must be lowercase letters, digits, - or _ and not built in")
+        robots = []
+        for item in a.robot:
+            parts = item.split(":")
+            try:
+                kind, count = parts[0].strip(), int(parts[1]) if len(parts) > 1 and parts[1] else 1
+                lift = float(parts[2]) if len(parts) > 2 else 0
+            except ValueError:
+                raise RentalError(f"--robot {item!r} must look like cargo:2:100") from None
+            if not KIND_RE.match(kind) or not 1 <= count <= 50 or lift < 0 or len(parts) > 3:
+                raise RentalError(f"--robot {item!r} must look like cargo:2:100")
+            robots.append({"kind": kind, "count": count, **({"lift_kg": lift} if lift else {})})
+        for name_, v in (("hours", a.hours), ("hours-per-unit", a.hours_per_unit)):
+            if not 0 <= v <= 24:
+                raise RentalError(f"--{name_} must be between 0 and 24")
+        if not a.hours and not a.hours_per_unit:
+            raise RentalError("give --hours, --hours-per-unit or both")
+        missing = sorted({r["kind"] for r in robots} - {r.kind for r in c.fleet.values()})
+        c.custom_jobs[name] = {
+            "robots": robots,
+            "hours": a.hours,
+            "hours_per_unit": a.hours_per_unit,
+            "unit": a.unit,
+            "description": a.description,
+        }
+        print(f"job {name}: {_job_line(c.custom_jobs[name])}")
+        if missing:
+            print(f"note: no {', '.join(missing)} robot in the fleet yet; quotes fail until you add one")
+    elif cmd == "job-remove":
+        if a.name not in c.custom_jobs:
+            raise RentalError(f"no job type {a.name!r} of your own")
+        del c.custom_jobs[a.name]
+        print(f"removed job {a.name}")
+    elif cmd == "jobs":
+        print(
+            "built in: move (--rooms, --heaviest, --stairs), deep_clean (--sqft, --detail), event (--guests, --hours)"
+        )
+        for name, spec in sorted(c.custom_jobs.items()):
+            print(f"  {name:<20} {_job_line(spec)}" + (f"  - {spec['description']}" if spec.get("description") else ""))
+        if not c.custom_jobs:
+            print("no job types of your own yet: add one with job-add")
+    elif cmd == "rates":
+        for name, v in (("km-rate", a.km_rate), ("operator-hourly", a.operator_hourly)):
+            if v is not None and not 0 <= v <= 100_000:
+                raise RentalError(f"--{name} must be between 0 and 100000")
+        if a.km_rate is not None:
+            c.km_rate = a.km_rate
+        if a.operator_hourly is not None:
+            c.operator_hourly = a.operator_hourly
+        print(f"delivery ${c.km_rate:,.2f}/km each way; operator ${c.operator_hourly:,.2f}/h")
+    elif cmd == "robot-add":
         if not getattr(c, "own_fleet", False):
             if any(b["status"] == "booked" for b in c.bookings.values()):
                 raise RentalError("bookings on the demo fleet are still out; return them before adding your own robots")
             c.fleet, c.own_fleet = {}, True
             print("replacing the demo fleet with your own robots")
+        kind = a.kind.strip().lower()
+        if not KIND_RE.match(kind):
+            raise RentalError(f"--kind {a.kind!r} must be lowercase letters, digits, - or _")
         rid = a.robot_id.strip()
         if not rid or rid in c.fleet:
             raise RentalError(f"robot id {rid!r} is empty or already in the fleet")
@@ -128,7 +240,7 @@ def _run(c: Counter, a):
         c.fleet[rid] = Robot(
             rid,
             a.model,
-            a.kind,
+            kind,
             a.daily,
             a.deposit,
             a.lift_kg,
@@ -137,7 +249,7 @@ def _run(c: Counter, a):
             a.serves_per_hour,
             a.needs_operator,
         )
-        print(f"{rid}: {a.model} ({a.kind}) at ${a.daily:,.0f}/day, deposit ${a.deposit:,.0f}; {len(c.fleet)} in fleet")
+        print(f"{rid}: {a.model} ({kind}) at ${a.daily:,.0f}/day, deposit ${a.deposit:,.0f}; {len(c.fleet)} in fleet")
     elif cmd == "robot-remove":
         if a.robot_id not in c.fleet:
             raise RentalError(f"no robot {a.robot_id!r} in the fleet")
@@ -181,6 +293,7 @@ def _run(c: Counter, a):
             detail=a.detail,
             guests=a.guests,
             hours=a.hours,
+            units=a.units,
         )
         bid = c.book(q, a.customer)
         print(f"{bid}: {a.job} on {q['date']} for {a.customer}; robots {', '.join(q['robots'])} (~{q['est_hours']} h)")

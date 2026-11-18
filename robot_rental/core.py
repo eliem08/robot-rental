@@ -56,12 +56,25 @@ def _positive(name: str, value, allow_zero: bool = False) -> None:
         raise RentalError(f"{name} must be a finite number {'>= 0' if allow_zero else '> 0'}, got {value!r}")
 
 
-def job_requirements(job: str, fleet=None, **p) -> dict:
+BUILT_IN_JOBS = ("move", "deep_clean", "event")
+
+
+def job_requirements(job: str, fleet=None, custom: dict | None = None, **p) -> dict:
     for name in ("rooms", "sqft", "guests", "hours"):
         if name in p:
             _positive(name, p[name])
     if "heaviest" in p:
         _positive("heaviest", p["heaviest"], allow_zero=True)
+    if custom and job in custom:  # an operator-defined job: fixed robots, hours = base + per unit
+        spec = custom[job]
+        units = p.get("units", 1)
+        _positive("units", units, allow_zero=True)
+        needs = [
+            {"kind": n["kind"], **({"lift_kg": n["lift_kg"]} if n.get("lift_kg") else {})}
+            for n in spec["robots"]
+            for _ in range(int(n.get("count", 1)))
+        ]
+        return {"needs": needs, "hours": spec.get("hours", 0) + spec.get("hours_per_unit", 0) * units}
     if job == "move":
         return {
             "needs": [
@@ -83,7 +96,8 @@ def job_requirements(job: str, fleet=None, **p) -> dict:
         if servers > fleet_servers:
             raise RentalError(f"{guests} guests need {servers} server robot(s); the fleet has {fleet_servers}")
         return {"needs": [{"kind": "server"} for _ in range(servers)], "hours": hours}
-    raise RentalError(f"unknown job {job!r}")
+    known = [*BUILT_IN_JOBS, *sorted(custom or {})]
+    raise RentalError(f"unknown job {job!r}; jobs: {', '.join(known)}")
 
 
 def _fits(r: Robot, need: dict) -> bool:
@@ -106,13 +120,15 @@ class Counter:
         }
         self.bookings: dict[str, dict] = {}
         self._ids = itertools.count(1)
+        self.custom_jobs: dict[str, dict] = {}
+        self.km_rate, self.operator_hourly = KM_RATE, OPERATOR_HOURLY
 
     def available(self, day: date) -> list[Robot]:
         return [r for r in self.fleet.values() if day not in r.booked]
 
     def quote(self, job: str, day: date, km: float = 10, **params) -> dict:
         _positive("km", km, allow_zero=True)
-        req = job_requirements(job, self.fleet.values(), **params)
+        req = job_requirements(job, self.fleet.values(), self.custom_jobs, **params)
         if req["hours"] > MAX_JOB_HOURS:
             raise RentalError(
                 f"job needs ~{req['hours']:.1f} h but a booking covers one {MAX_JOB_HOURS} h day; split it into days"
@@ -126,8 +142,8 @@ class Counter:
             chosen.append(pick)
         hours = round(req["hours"], 2)
         rental = sum(r.daily for r in chosen)
-        delivery = round(km * KM_RATE * 2, 2)
-        operator = round(OPERATOR_HOURLY * hours, 2) if any(r.needs_operator for r in chosen) else 0.0
+        delivery = round(km * self.km_rate * 2, 2)
+        operator = round(self.operator_hourly * hours, 2) if any(r.needs_operator for r in chosen) else 0.0
         deposit = sum(r.deposit for r in chosen)
         return {
             "job": job,

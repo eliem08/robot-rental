@@ -9,7 +9,7 @@
 
 **The problem:** Robots are expensive to own and hard to book, and quoting a job by hand is slow and error-prone.
 
-**What you get:** Job-based quotes that pick the right robots, availability-safe booking, deposits, damage and late-fee returns.
+**What you get:** Your own fleet, job types and rates; quotes that pick the right robots, availability-safe booking, deposits, damage and late-fee returns.
 
 ## Quickstart
 
@@ -34,7 +34,7 @@ docker build -t robot-rental . && docker run -p 8000:8000 -e API_KEYS=sk_... -v 
 
 Every API call needs `Authorization: Bearer <key>` once any key exists; a server on a public address refuses to start without one. Calls are rate-limited per key (60/min, `--rate`) and metered: `robot-rental-web usage` prints calls per key for billing.
 
-Endpoints: `POST /api/fleet`, `POST /api/quote`, `POST /api/robot-add`, `POST /api/robot-remove`, `POST /api/robots`, `POST /api/reserve`, `POST /api/return`, `POST /api/rentals`, `POST /api/availability`, plus `GET /healthz` and `GET /api/spec` (machine-readable field list).
+Endpoints: `POST /api/fleet`, `POST /api/quote`, `POST /api/robot-add`, `POST /api/robot-remove`, `POST /api/robots`, `POST /api/job-add`, `POST /api/job-remove`, `POST /api/jobs`, `POST /api/rates`, `POST /api/reserve`, `POST /api/return`, `POST /api/rentals`, `POST /api/availability`, plus `GET /healthz` and `GET /api/spec` (machine-readable field list).
 Files are sent as `{"name": ..., "content": ...}`, folders as `{"files": [...]}` or a base64 zip.
 
 ## Deploy and sell
@@ -60,7 +60,7 @@ Monthly plans start with a 14-day free trial. Prices in USD, billed monthly unle
 
 | Plan | Price | Includes |
 |---|---|---|
-| **Operator** | $149 per month | Built-in fleet catalogue; Quotes and bookings; Deposits and returns |
+| **Operator** | $149 per month | Your own fleet, job types and rates; Quotes and bookings; Deposits and returns |
 | **Fleet** | $599 per month | Rental and deposit ledger; Availability by day; Priority support |
 | **Marketplace** | Custom (revenue share, contact sales) | Self-hosted deployment; Dedicated support |
 
@@ -110,7 +110,23 @@ robot-rental robots
 robot-rental robot-remove VAN-1   # refused while the robot is on a booking
 ```
 
-Quotes and reservations then use only your robots.
+Quotes and reservations then use only your robots. `--kind` is any name you choose, so security, delivery or
+drone robots work alongside the built-in humanoid, cargo, cleaner and server kinds.
+
+## Your own jobs and rates
+
+Besides the built-in move, deep_clean and event jobs, define the jobs you actually rent out. Each lists the
+robots it needs (`KIND[:COUNT[:MIN_LIFT_KG]]`) and how long it takes: fixed hours, hours per unit, or both.
+
+```bash
+robot-rental job-add warehouse_inventory --robot cargo:2:200 --hours 1 --hours-per-unit 0.25 --unit pallet
+robot-rental job-add night_patrol --robot security --hours 10
+robot-rental rates --km-rate 3.20 --operator-hourly 60      # your delivery and operator prices
+robot-rental jobs
+robot-rental reserve acme warehouse_inventory --date 2027-01-10 --units 20 --km 15
+```
+
+Defaults until you set them: $2.50/km each way for delivery and $45/h for an operator.
 
 ## Roadmap
 

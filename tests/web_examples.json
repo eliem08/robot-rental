@@ -15,7 +15,8 @@
    "stairs": true,
    "sqft": 1200,
    "guests": 60,
-   "hours": 4
+   "hours": 4,
+   "units": 1
   }
  },
  {
